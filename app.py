@@ -1,5 +1,4 @@
 from flask import Flask, request, jsonify
-from flask_cors import CORS   # ✅ ADDED (required for mobile apps)
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing import image
 from tensorflow.keras.applications.mobilenet_v2 import preprocess_input
@@ -9,12 +8,10 @@ import cv2
 import os
 from datetime import datetime
 
-
 # =========================
 # APP CONFIG
 # =========================
 app = Flask(__name__)
-CORS(app)   # ✅ ADDED (allow requests from APK)
 
 IMG_SIZE = (224, 224)
 MODEL_PATH = "model.h5"
@@ -122,9 +119,7 @@ def analyze_image(img_path):
 
     # ---------- STEP 3: CONFIDENCE CHECK ----------
     if best_conf < CONFIDENCE_THRESHOLD or gap < TOP_GAP_THRESHOLD:
-        return invalid_response(
-            "Unclear disease. Upload clear tomato leaf.", img_path
-        )
+        return invalid_response("Unclear disease. Upload clear tomato leaf.", img_path)
 
     # ---------- STEP 4: CSV LOOKUP ----------
     row = df[df['disease'] == disease]
@@ -137,10 +132,11 @@ def analyze_image(img_path):
         "fertilizer": row['recommended_fertilizer'].values[0],
         "solution": row['solution'].values[0],
         "description": row['description'].values[0],
-        "crop": row['crop'].values[0]
+        "crop": row['crop'].values[0],
+        "img_path": img_path
     }
 
-    # ---------- CLEANUP ----------
+    # Optional: delete uploaded file
     if os.path.exists(img_path):
         os.remove(img_path)
 
@@ -150,14 +146,18 @@ def analyze_image(img_path):
 # INVALID RESPONSE
 # =========================
 def invalid_response(message, img_path):
-    if os.path.exists(img_path):
-        os.remove(img_path)
-
     return jsonify({
         "disease": "Not a Tomato Leaf",
         "confidence": 0,
         "fertilizer": "N/A",
         "solution": message,
         "description": "Prediction requires a clear tomato leaf image.",
-        "crop": "Tomato"
+        "crop": "Tomato",
+        "img_path": img_path
     }), 400
+
+# =========================
+# RENDER RUN CONFIG
+# =========================
+if __name__ == "__main__":
+    app.run()
