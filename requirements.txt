@@ -4,3 +4,5 @@ numpy==1.24.4
 pandas==2.1.1
 opencv-python==4.8.1.78
 gunicorn==21.2.0
+setuptools>=67.0.0
+wheel
