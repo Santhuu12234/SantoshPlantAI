@@ -1,7 +1,5 @@
-flask
-gunicorn
-tensorflow
-numpy
-pandas
-opencv-python-headless
-Pillow
+Flask==2.3.3
+numpy==1.26.0
+pandas==2.1.0
+opencv-python-headless==4.8.1.78
+tensorflow==2.13.0
