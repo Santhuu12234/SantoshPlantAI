@@ -149,5 +149,10 @@ def invalid_response(message, img_path):
 # RUN APP
 # =========================
 if __name__ == "__main__":
+    import os
     port = int(os.environ.get("PORT", 5000))
+    # Only 1 worker, preload model once
+    from gunicorn.app.wsgiapp import run
+    app.config["MODEL_LOADED"] = True  # just a flag to avoid multiple loads
+    # Local run fallback
     app.run(host="0.0.0.0", port=port)
