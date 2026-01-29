@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify
+from flask_cors import CORS
 from tensorflow.keras.models import load_model
 from tensorflow.keras.preprocessing import image
 from tensorflow.keras.applications.mobilenet_v2 import preprocess_input
@@ -12,6 +13,7 @@ from datetime import datetime
 # APP CONFIG
 # =========================
 app = Flask(__name__)
+CORS(app)
 
 IMG_SIZE = (224, 224)
 MODEL_PATH = "model.h5"
@@ -23,7 +25,7 @@ os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 os.makedirs(CAMERA_FOLDER, exist_ok=True)
 
 # =========================
-# LOAD MODEL & CSV
+# LOAD MODEL & CSV ON STARTUP
 # =========================
 model = load_model(MODEL_PATH, compile=False)
 df = pd.read_csv(CSV_PATH)
@@ -38,9 +40,7 @@ CLASSES = [
     'Tomato___healthy'
 ]
 
-# =========================
-# THRESHOLDS
-# =========================
+# Thresholds
 CONFIDENCE_THRESHOLD = 80
 TOP_GAP_THRESHOLD = 12
 GREEN_RATIO_THRESHOLD = 0.18
@@ -54,28 +54,26 @@ def home():
 
 @app.route('/predict', methods=['POST'])
 def predict():
-    """Upload image from gallery"""
     if 'file' not in request.files:
         return jsonify({"error": "No file uploaded"}), 400
 
     file = request.files['file']
     img_path = os.path.join(
         UPLOAD_FOLDER,
-        datetime.now().strftime('%Y%m%d%H%M%S') + ".jpg"
+        datetime.now().strftime('%Y%m%d%H%M%S%f') + ".jpg"
     )
     file.save(img_path)
     return analyze_image(img_path)
 
 @app.route('/predict_camera', methods=['POST'])
 def predict_camera():
-    """Upload image from camera"""
     if 'file' not in request.files:
         return jsonify({"error": "No file uploaded"}), 400
 
     file = request.files['file']
     img_path = os.path.join(
         CAMERA_FOLDER,
-        datetime.now().strftime('%Y%m%d%H%M%S') + ".jpg"
+        datetime.now().strftime('%Y%m%d%H%M%S%f') + ".jpg"
     )
     file.save(img_path)
     return analyze_image(img_path)
@@ -84,9 +82,7 @@ def predict_camera():
 # CORE LOGIC
 # =========================
 def analyze_image(img_path):
-    """Analyze image exactly like your web app.py"""
-
-    # ---------- STEP 1: GREEN LEAF CHECK ----------
+    # Green leaf check
     img_cv = cv2.imread(img_path)
     if img_cv is None:
         return invalid_response("Invalid image file", img_path)
@@ -100,7 +96,7 @@ def analyze_image(img_path):
     if green_ratio < GREEN_RATIO_THRESHOLD:
         return invalid_response("Not a tomato leaf", img_path)
 
-    # ---------- STEP 2: MODEL PREDICTION ----------
+    # Model prediction
     img = image.load_img(img_path, target_size=IMG_SIZE)
     x = image.img_to_array(img)
     x = np.expand_dims(x, axis=0)
@@ -117,11 +113,10 @@ def analyze_image(img_path):
 
     disease = CLASSES[best_idx]
 
-    # ---------- STEP 3: CONFIDENCE CHECK ----------
     if best_conf < CONFIDENCE_THRESHOLD or gap < TOP_GAP_THRESHOLD:
         return invalid_response("Unclear disease. Upload clear tomato leaf.", img_path)
 
-    # ---------- STEP 4: CSV LOOKUP ----------
+    # CSV lookup
     row = df[df['disease'] == disease]
     if row.empty:
         return invalid_response("Disease information not found", img_path)
@@ -136,13 +131,9 @@ def analyze_image(img_path):
         "img_path": img_path
     }
 
-    # Optional: delete uploaded file
     os.remove(img_path)
     return jsonify(response)
 
-# =========================
-# INVALID RESPONSE
-# =========================
 def invalid_response(message, img_path):
     return jsonify({
         "disease": "Not a Tomato Leaf",
@@ -158,4 +149,5 @@ def invalid_response(message, img_path):
 # RUN APP
 # =========================
 if __name__ == "__main__":
-    app.run()
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port)

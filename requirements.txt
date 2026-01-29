@@ -1,7 +1,6 @@
 flask
+flask-cors
 tensorflow
-opencv-python-headless
-numpy
+opencv-python
 pandas
-pillow
-gunicorn
+numpy
